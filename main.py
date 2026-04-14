@@ -8,10 +8,10 @@ import os
 
 app = FastAPI()
 
-# ✅ CORS (allow frontend)
+# ✅ CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # change to your Vercel URL later
+    allow_origins=["*"],  # later restrict to your Vercel URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,7 +25,7 @@ PASSWORD = os.getenv("PASSWORD")
 print("MONGO_URL:", MONGO_URL)
 print("EMAIL:", EMAIL)
 
-# ✅ MongoDB connection
+# ✅ MongoDB Connection (safe)
 if not MONGO_URL:
     raise Exception("MONGO_URL not set ❌")
 
@@ -41,16 +41,15 @@ class Lead(BaseModel):
     mobile: str
 
 
-# ✅ Send Email Function (with debug)
+# ✅ Email Function (SAFE - won't crash server)
 def send_email(data: Lead):
     try:
         print("Connecting to SMTP...")
 
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
         server.starttls()
 
         print("Logging in...")
-
         server.login(EMAIL, PASSWORD)
 
         msg = MIMEText(f"""
@@ -66,7 +65,6 @@ Mobile: {data.mobile}
         msg["To"] = EMAIL
 
         print("Sending email...")
-
         server.send_message(msg)
         server.quit()
 
@@ -76,29 +74,29 @@ Mobile: {data.mobile}
         print("EMAIL ERROR ❌:", e)
 
 
-# ✅ Root route (to avoid 404)
+# ✅ Root route (avoid 404)
 @app.get("/")
 def home():
     return {"message": "Backend is running 🚀"}
 
 
-# ✅ API Route
+# ✅ Main API
 @app.post("/submit")
 async def submit(data: Lead):
     try:
-        print("Received data:", data)
+        print("Received:", data)
 
-        # Save to MongoDB
+        # ✅ Save to MongoDB
         collection.insert_one(data.dict())
         print("Saved to MongoDB ✅")
 
-        # Send Email (safe)
+        # ✅ Try sending email (won’t crash)
         try:
             send_email(data)
         except Exception as e:
             print("Email failed ❌:", e)
 
-        return {"message": "Saved successfully + Email attempted ✅"}
+        return {"message": "Saved successfully ✅"}
 
     except Exception as e:
         print("SERVER ERROR ❌:", e)
