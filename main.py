@@ -1,88 +1,32 @@
-from fastapi import FastAPI, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 from pydantic import BaseModel
 from pymongo import MongoClient
-import smtplib
-from email.mime.text import MIMEText
-import os
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# ✅ CORS
+# ✅ CORS FIX (VERY IMPORTANT)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # later replace with your Vercel URL
+    allow_origins=["*"],  # React frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ ENV VARIABLES
-MONGO_URL = os.getenv("MONGO_URL")
-EMAIL = os.getenv("EMAIL")
-PASSWORD = os.getenv("PASSWORD")
-
-# ✅ MongoDB Connection
-if not MONGO_URL:
-    raise Exception("MONGO_URL not set ❌")
-
-client = MongoClient(MONGO_URL)
+# MongoDB connection
+client = MongoClient("mongodb+srv://shubham:Shubham@cluster0.l6q3n6r.mongodb.net/?appName=Cluster0")
 db = client["portfolio"]
 collection = db["leads"]
 
-# ✅ Schema
+# Schema
 class Lead(BaseModel):
     name: str
     email: str
     mobile: str
 
-# ✅ Email Function (runs in background)
-def send_email(data: Lead):
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
-        server.starttls()
-        server.login(EMAIL, PASSWORD)
-
-        msg = MIMEText(f"""
-New Resume Request 🚀
-
-Name: {data.name}
-Email: {data.email}
-Mobile: {data.mobile}
-""")
-
-        msg["Subject"] = "New Portfolio Lead"
-        msg["From"] = EMAIL
-        msg["To"] = EMAIL
-
-        server.send_message(msg)
-        server.quit()
-
-        print("Email sent ✅")
-
-    except Exception as e:
-        print("EMAIL ERROR ❌:", e)
-
-# ✅ Root route
-@app.get("/")
-def home():
-    return {"message": "Backend is running 🚀"}
-
-# ✅ Main API (FAST RESPONSE)
+# API
 @app.post("/submit")
-async def submit(data: Lead, background_tasks: BackgroundTasks):
-    try:
-        print("Received:", data)
-
-        # ✅ Save to MongoDB
-        collection.insert_one(data.dict())
-        print("Saved to MongoDB ✅")
-
-        # ✅ Send email in background (NO DELAY)
-        background_tasks.add_task(send_email, data)
-
-        return {"message": "Saved successfully ✅"}
-
-    except Exception as e:
-        print("SERVER ERROR ❌:", e)
-        return {"message": "Server error"}
+async def submit_data(data: Lead):
+    collection.insert_one(data.model_dump())
+    return {"message": "Data saved successfully"}
