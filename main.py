@@ -8,61 +8,72 @@ import os
 
 app = FastAPI()
 
-# CORS
+# ✅ CORS (allow frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://rohit-bulbule-portfolio.vercel.app"],
+    allow_origins=["*"],  # you can restrict later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# MongoDB
-client = MongoClient(os.getenv("MONGO_URL"))
+# ✅ MongoDB (from ENV)
+MONGO_URL = os.getenv("MONGO_URL")
+client = MongoClient(MONGO_URL)
 db = client["portfolio"]
 collection = db["leads"]
 
-# Your email (CHANGE THIS)
-EMAIL = "rohitbulbule07@gmail.com"
-PASSWORD = "zyhm qewz dheh upjw"
+# ✅ Email ENV
+EMAIL = os.getenv("EMAIL")
+PASSWORD = os.getenv("PASSWORD")
 
 
-# Form schema
+# ✅ Schema
 class Lead(BaseModel):
     name: str
     email: str
     mobile: str
 
 
-# Function to send email
+# ✅ Send Email Function
 def send_email(data: Lead):
-    msg = MIMEText(
-        f"""
-New Resume Request:
+    try:
+        msg = MIMEText(f"""
+New Resume Request 🚀
 
 Name: {data.name}
 Email: {data.email}
 Mobile: {data.mobile}
-"""
-    )
+""")
 
-    msg["Subject"] = "New Portfolio Lead 🚀"
-    msg["From"] = EMAIL
-    msg["To"] = EMAIL
+        msg["Subject"] = "New Portfolio Lead"
+        msg["From"] = EMAIL
+        msg["To"] = EMAIL
 
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login(EMAIL, PASSWORD)
-    server.send_message(msg)
-    server.quit()
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(EMAIL, PASSWORD)
+        server.send_message(msg)
+        server.quit()
+
+        print("Email sent successfully ✅")
+
+    except Exception as e:
+        print("Email error ❌:", e)
 
 
-# API
+# ✅ API Route
 @app.post("/submit")
 async def submit(data: Lead):
-    collection.insert_one(data.dict())
+    try:
+        # Save to MongoDB
+        collection.insert_one(data.dict())
 
-    # send email
-    send_email(data)
+        # Send Email
+        send_email(data)
 
-    return {"message": "Saved + Email Sent"}
+        return {"message": "Saved + Email Sent ✅"}
+
+    except Exception as e:
+        print("Error ❌:", e)
+        return {"message": "Error saving data"}
